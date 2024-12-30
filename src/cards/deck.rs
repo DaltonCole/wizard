@@ -5,12 +5,8 @@ use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-//use serde::de::{self, Deserialize, Deserializer, Visitor};
-//use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Deck {
