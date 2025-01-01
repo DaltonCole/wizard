@@ -410,7 +410,130 @@ mod tests {
 
     #[test]
     fn trick_winner() {
-        todo!();
+        let mut game = WizardGame::new(3).unwrap();
+
+        // Wizard
+        for i in 0..3 {
+            assert_eq!(
+                i,
+                game.trick_winner(
+                    &vec![
+                        Card::SpecialCard(SpecialCard::Wizard),
+                        Card::SpecialCard(SpecialCard::Wizard),
+                        Card::SpecialCard(SpecialCard::Wizard),
+                    ],
+                    i
+                )
+            );
+        }
+        assert_eq!(
+            0,
+            game.trick_winner(
+                &vec![
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Ace
+                    }),
+                    Card::SpecialCard(SpecialCard::Wizard),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Queen
+                    }),
+                ],
+                2
+            )
+        );
+        // Jester
+        for i in 0..3 {
+            assert_eq!(
+                i,
+                game.trick_winner(
+                    &vec![
+                        Card::SpecialCard(SpecialCard::Jester),
+                        Card::SpecialCard(SpecialCard::Jester),
+                        Card::SpecialCard(SpecialCard::Jester),
+                    ],
+                    i
+                )
+            );
+        }
+        assert_eq!(
+            1,
+            game.trick_winner(
+                &vec![
+                    Card::SpecialCard(SpecialCard::Jester),
+                    Card::SpecialCard(SpecialCard::Jester),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Queen
+                    }),
+                ],
+                2
+            )
+        );
+        // Normal cards
+        assert_eq!(
+            2,
+            game.trick_winner(
+                &vec![
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Ace
+                    }),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::King
+                    }),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Queen
+                    }),
+                ],
+                2
+            )
+        );
+
+        game.trump_suit = Some(Suit::Heart);
+        assert_eq!(
+            0,
+            game.trick_winner(
+                &vec![
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Two
+                    }),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Diamond,
+                        rank: Rank::King
+                    }),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Club,
+                        rank: Rank::Ace
+                    }),
+                ],
+                0
+            )
+        );
+        assert_eq!(
+            2,
+            game.trick_winner(
+                &vec![
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Ace
+                    }),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Heart,
+                        rank: Rank::King
+                    }),
+                    Card::NormalCard(NormalCard {
+                        suit: Suit::Spade,
+                        rank: Rank::Queen
+                    }),
+                ],
+                1
+            )
+        );
     }
 
     #[test]
