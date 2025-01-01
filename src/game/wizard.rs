@@ -325,6 +325,8 @@ impl WizardGame {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cards::rank::Rank;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn not_enough_players() {
@@ -413,6 +415,176 @@ mod tests {
 
     #[test]
     fn is_better_card() {
-        todo!();
+        // --- Wizards tests --- //
+        assert!(!WizardGame::is_better_card(
+            &Card::SpecialCard(SpecialCard::Wizard),
+            &Card::SpecialCard(SpecialCard::Wizard),
+            Some(Suit::Spade),
+            Some(Suit::Spade)
+        ));
+        assert!(!WizardGame::is_better_card(
+            &Card::SpecialCard(SpecialCard::Wizard),
+            &Card::SpecialCard(SpecialCard::Jester),
+            Some(Suit::Spade),
+            Some(Suit::Spade)
+        ));
+        assert!(WizardGame::is_better_card(
+            &Card::SpecialCard(SpecialCard::Jester),
+            &Card::SpecialCard(SpecialCard::Wizard),
+            Some(Suit::Spade),
+            Some(Suit::Spade)
+        ));
+
+        for trump_suit in Suit::iter() {
+            for lead_suit in Suit::iter() {
+                for suit in Suit::iter() {
+                    for rank in Rank::iter() {
+                        assert!(WizardGame::is_better_card(
+                            &Card::NormalCard(NormalCard { suit, rank }),
+                            &Card::SpecialCard(SpecialCard::Wizard),
+                            Some(trump_suit),
+                            Some(lead_suit)
+                        ));
+                        assert!(!WizardGame::is_better_card(
+                            &Card::SpecialCard(SpecialCard::Wizard),
+                            &Card::NormalCard(NormalCard { suit, rank }),
+                            Some(trump_suit),
+                            Some(lead_suit)
+                        ));
+                    }
+                }
+            }
+        }
+
+        // --- Jester tests --- //
+        assert!(!WizardGame::is_better_card(
+            &Card::SpecialCard(SpecialCard::Jester),
+            &Card::SpecialCard(SpecialCard::Jester),
+            Some(Suit::Spade),
+            Some(Suit::Spade)
+        ));
+
+        for trump_suit in Suit::iter() {
+            for lead_suit in Suit::iter() {
+                for suit in Suit::iter() {
+                    for rank in Rank::iter() {
+                        assert!(!WizardGame::is_better_card(
+                            &Card::NormalCard(NormalCard { suit, rank }),
+                            &Card::SpecialCard(SpecialCard::Jester),
+                            Some(trump_suit),
+                            Some(lead_suit)
+                        ));
+                        assert!(WizardGame::is_better_card(
+                            &Card::SpecialCard(SpecialCard::Jester),
+                            &Card::NormalCard(NormalCard { suit, rank }),
+                            Some(trump_suit),
+                            Some(lead_suit)
+                        ));
+                    }
+                }
+            }
+        }
+
+        // --- Normal card tests --- //
+        // Trump suit wins
+        assert!(WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Ace
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Spade,
+                rank: Rank::Two
+            }),
+            Some(Suit::Heart),
+            Some(Suit::Spade)
+        ));
+        assert!(!WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Ace
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Spade,
+                rank: Rank::Two
+            }),
+            Some(Suit::Spade),
+            Some(Suit::Heart),
+        ));
+        // Lead suit wins
+        assert!(WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Ace
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Spade,
+                rank: Rank::Two
+            }),
+            Some(Suit::Spade),
+            Some(Suit::Diamond)
+        ));
+        assert!(!WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Ace
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Spade,
+                rank: Rank::Two
+            }),
+            Some(Suit::Heart),
+            Some(Suit::Diamond)
+        ));
+        // High card of same suit wins
+        assert!(WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Two
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Ace
+            }),
+            Some(Suit::Club),
+            Some(Suit::Diamond)
+        ));
+        assert!(!WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Ace
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Two
+            }),
+            Some(Suit::Club),
+            Some(Suit::Diamond)
+        ));
+        // First card of none lead nor trump suit wins
+        assert!(!WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Two
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Spade,
+                rank: Rank::Ace
+            }),
+            Some(Suit::Club),
+            Some(Suit::Diamond)
+        ));
+        assert!(!WizardGame::is_better_card(
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Heart,
+                rank: Rank::Ace
+            }),
+            &Card::NormalCard(NormalCard {
+                suit: Suit::Spade,
+                rank: Rank::Two
+            }),
+            Some(Suit::Club),
+            Some(Suit::Diamond)
+        ));
     }
 }
