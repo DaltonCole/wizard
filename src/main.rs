@@ -2,6 +2,9 @@ mod cards;
 mod game;
 mod players;
 
+use crate::game::wizard::WizardGame;
+
 fn main() {
-    println!("Hello, world!");
+    let mut game = WizardGame::new(4).unwrap();
+    game.play_game();
 }

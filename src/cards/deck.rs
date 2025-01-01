@@ -3,6 +3,7 @@ use crate::cards::normal_card::NormalCard;
 use crate::cards::rank::Rank;
 use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
+use anyhow::{bail, Result};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -43,6 +44,19 @@ impl Deck {
     pub fn shuffle(&mut self) {
         let mut rng = thread_rng();
         self.cards.shuffle(&mut rng);
+    }
+
+    /// Deal N cards
+    pub fn deal(&mut self, n: usize) -> Result<Vec<Card>> {
+        if n > self.cards.len() {
+            bail!(
+                "Not enough cards left in deck. Cards remaining: {}; Cards requested: {}",
+                self.cards.len(),
+                n
+            );
+        }
+        let drain_start = self.cards.len().saturating_sub(n);
+        Ok(self.cards.drain(drain_start..).collect())
     }
 }
 
@@ -130,5 +144,33 @@ mod test {
 
         println!("{}", string);
         assert_eq!(deck, deck2);
+    }
+
+    #[test]
+    fn deal() {
+        let mut deck = Deck::new();
+
+        // Request 0 cards
+        assert_eq!(0, deck.deal(0).unwrap().len());
+        assert_eq!(60, deck.cards.len());
+
+        assert_eq!(5, deck.deal(5).unwrap().len());
+        assert_eq!(55, deck.cards.len());
+
+        assert_eq!(7, deck.deal(7).unwrap().len());
+        assert_eq!(48, deck.cards.len());
+
+        assert_eq!(12, deck.deal(12).unwrap().len());
+        assert_eq!(36, deck.cards.len());
+
+        // Request too many cards
+        assert!(deck.deal(100).is_err());
+
+        // Deal all of the cards
+        assert_eq!(36, deck.deal(36).unwrap().len());
+        assert_eq!(0, deck.cards.len());
+
+        // Request cards from an empty deck
+        assert!(deck.deal(100).is_err());
     }
 }
