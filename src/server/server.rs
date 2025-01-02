@@ -28,6 +28,7 @@ impl Server {
             rxs.push(rx);
         }
 
+        // Spawn thread to handle incoming connections
         thread::spawn(move || {
             for stream in listener.incoming() {
                 match stream {
@@ -49,9 +50,13 @@ impl Server {
 
     fn handle_client(mut stream: TcpStream, tx: mpsc::Sender<Card>) {
         let mut buffer = [0; 512];
-        match stream.read(&mut buffer) {
-            Ok(bytes_read) => {
-                if bytes_read > 0 {
+        loop {
+            match stream.read(&mut buffer) {
+                Ok(0) => {
+                    println!("Client disconnected");
+                    break;
+                }
+                Ok(bytes_read) => {
                     let received_data = &buffer[..bytes_read];
                     if let Ok(json_str) = std::str::from_utf8(received_data) {
                         if let Ok(message) = serde_json::from_str::<Card>(json_str) {
@@ -60,8 +65,8 @@ impl Server {
                         }
                     }
                 }
+                Err(e) => eprintln!("Failed to read from client: {}", e),
             }
-            Err(e) => eprintln!("Failed to read from client: {}", e),
         }
     }
 }
