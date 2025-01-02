@@ -29,6 +29,7 @@ impl HumanClient {
 
         // Listen to server
         thread::spawn(move || {
+            // TODO: Make like server
             let mut buffer = [0; 512];
             loop {
                 match stream_clone.read(&mut buffer) {
@@ -56,7 +57,7 @@ impl HumanClient {
         println!("{}", tmp);
 
         // Send to server
-        loop {
+        'server_send: loop {
             print!("Enter card: ");
             io::stdout().flush()?;
             let mut input = String::new();
@@ -73,7 +74,15 @@ impl HumanClient {
 
             let serialized = serde_json::to_string(&card).unwrap();
 
-            stream.write_all(serialized.as_bytes())?;
+            // Send data in chunks
+            let chunk_size = 1024;
+
+            for chunk in serialized.as_bytes().chunks(chunk_size) {
+                if let Err(e) = stream.write_all(chunk) {
+                    eprintln!("Error sending chunk: {}", e);
+                    continue 'server_send;
+                }
+            }
         }
     }
 }

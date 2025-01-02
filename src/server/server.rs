@@ -40,23 +40,32 @@ impl Server {
     }
 
     fn handle_client(client_id: usize, mut stream: TcpStream, tx: mpsc::Sender<(usize, Card)>) {
-        let mut buffer = [0; 512];
+        let mut buffer = [0; 1024];
+        let mut message = Vec::new();
+
         loop {
-            match stream.read(&mut buffer) {
+            // Read n bytes
+            let bytes_read = match stream.read(&mut buffer) {
                 Ok(0) => {
                     println!("Client disconnected");
                     break;
                 }
-                Ok(bytes_read) => {
-                    let received_data = &buffer[..bytes_read];
-                    if let Ok(json_str) = std::str::from_utf8(received_data) {
-                        if let Ok(message) = serde_json::from_str::<Card>(json_str) {
-                            println!("Server received: {:?}", message);
-                            tx.send((client_id, message)).unwrap();
-                        }
-                    }
+                Ok(bytes_read) => bytes_read,
+                Err(e) => {
+                    eprintln!("Failed to read from client: {}", e);
+                    continue;
                 }
-                Err(e) => eprintln!("Failed to read from client: {}", e),
+            };
+
+            // Append the received chunk to the message buffer
+            message.extend_from_slice(&buffer[..bytes_read]);
+
+            if let Ok(json_str) = std::str::from_utf8(&message) {
+                if let Ok(card) = serde_json::from_str::<Card>(&json_str) {
+                    println!("Server received: {:?}", card);
+                    tx.send((client_id, card)).unwrap();
+                    message.clear();
+                }
             }
         }
     }
