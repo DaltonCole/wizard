@@ -4,6 +4,7 @@ use crate::cards::rank::Rank;
 use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
 use crate::game::wizard::WizardGame;
+use crate::network::network::{network_listener, network_writer};
 use serde_json::Value;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -13,6 +14,36 @@ use std::thread;
 pub struct Server;
 
 impl Server {
+    /// Spawns a thread that listens to a specific client
+    fn client_listener(id: usize, stream: TcpStream, tx: mpsc::Sender<(usize, Vec<u8>)>) {
+        thread::spawn(move || network_listener(id, stream, tx));
+    }
+
+    /// Spawn a thread that will handle incoming connections up to N connections
+    fn handle_incoming_connections(
+        listener: TcpListener,
+        tx: mpsc::Sender<(usize, Vec<u8>)>,
+        n: usize,
+    ) {
+        thread::spawn(move || {
+            for (id, stream) in listener.incoming().enumerate() {
+                match stream {
+                    Ok(stream) => {
+                        Server::client_listener(id, stream, tx.clone());
+                    }
+                    Err(e) => eprintln!("Connection failed: {}", e),
+                }
+                if id == n.saturating_sub(1) {
+                    break;
+                }
+            }
+        });
+    }
+
+    fn convert_binary_into_card(data: &Vec<u8>) -> Result<Card, serde_json::Error> {
+        serde_json::from_slice(&data)
+    }
+
     pub fn start_server(&mut self, num_players: usize) {
         let mut game = WizardGame::new(num_players).unwrap();
 
@@ -22,50 +53,14 @@ impl Server {
         let (tx, rx) = mpsc::channel();
 
         // Spawn thread to handle incoming connections
-        thread::spawn(move || {
-            for (id, stream) in listener.incoming().enumerate() {
-                match stream {
-                    Ok(stream) => {
-                        let tx_clone = tx.clone();
-                        thread::spawn(move || Server::handle_client(id, stream, tx_clone));
-                    }
-                    Err(e) => eprintln!("Connection failed: {}", e),
-                }
-            }
-        });
+        Server::handle_incoming_connections(listener, tx, num_players);
 
+        let mut data = Vec::new();
         while let Ok((client_id, message)) = rx.recv() {
-            println!("Client {}: {:?}", client_id, message);
-        }
-    }
-
-    fn handle_client(client_id: usize, mut stream: TcpStream, tx: mpsc::Sender<(usize, Card)>) {
-        let mut buffer = [0; 1024];
-        let mut message = Vec::new();
-
-        loop {
-            // Read n bytes
-            let bytes_read = match stream.read(&mut buffer) {
-                Ok(0) => {
-                    println!("Client disconnected");
-                    break;
-                }
-                Ok(bytes_read) => bytes_read,
-                Err(e) => {
-                    eprintln!("Failed to read from client: {}", e);
-                    continue;
-                }
-            };
-
-            // Append the received chunk to the message buffer
-            message.extend_from_slice(&buffer[..bytes_read]);
-
-            if let Ok(json_str) = std::str::from_utf8(&message) {
-                if let Ok(card) = serde_json::from_str::<Card>(&json_str) {
-                    println!("Server received: {:?}", card);
-                    tx.send((client_id, card)).unwrap();
-                    message.clear();
-                }
+            data.extend(message.iter());
+            if let Ok(card) = Server::convert_binary_into_card(&data) {
+                println!("Client {}: {:?}", client_id, card);
+                data.clear();
             }
         }
     }
