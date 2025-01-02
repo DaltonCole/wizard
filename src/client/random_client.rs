@@ -4,8 +4,9 @@ use crate::cards::rank::Rank;
 use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
 use crate::game::wizard::WizardGame;
-use crate::network::network::{network_listener, network_writer};
-use serde_json::Value;
+use crate::network::action::Action;
+use crate::network::network::{handle_incoming_connections, network_listener, network_writer};
+use serde_json::{json, Value};
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
@@ -55,12 +56,40 @@ impl RandomClient {
         tx
     }
 
-    pub fn client(&mut self) -> std::io::Result<()> {
-        let mut stream = TcpStream::connect("0.0.0.0:7878")?;
-        println!("Connected to the server.");
+    /// Connect to the server
+    ///
+    /// # Returns
+    /// * Connection to read data from the server
+    /// * Connection to write data to the server
+    fn connect_to_server(
+        &self,
+    ) -> std::io::Result<(mpsc::Receiver<(usize, Vec<u8>)>, mpsc::Sender<Vec<u8>>)> {
+        let (listener_tx, server_rx) = mpsc::channel();
+        let (server_tx, writer_rx) = mpsc::channel();
 
-        let server_rx = RandomClient::server_listener(stream.try_clone()?);
-        let server_tx = RandomClient::server_writer(stream.try_clone()?);
+        // Server listener
+        let listener = TcpListener::bind("0.0.0.0:0")?; // Let OS decide port
+        let port = listener.local_addr()?.port();
+        handle_incoming_connections(listener, listener_tx, 1);
+
+        // Server writer
+        let mut stream = TcpStream::connect(format!("{}:{}", self.host, self.port))?;
+        network_writer(stream.try_clone()?, writer_rx);
+
+        // Send over port to server
+        let port_json = json!({
+            "action": Action::Connect,
+            "port": port,
+        });
+        let serialized = serde_json::to_vec(&port_json).unwrap();
+        server_tx.send(serialized);
+
+        Ok((server_rx, server_tx))
+    }
+
+    pub fn client(&mut self) -> std::io::Result<()> {
+        let (server_rx, server_tx) = self.connect_to_server()?;
+        println!("Connected to the server.");
 
         let tmp = serde_json::to_string(&Card::NormalCard(NormalCard {
             suit: Suit::Heart,
@@ -85,10 +114,14 @@ impl RandomClient {
                 }
             };
 
-            let serialized = serde_json::to_string(&card).unwrap();
+            let card_json = json!({
+                "action": Action::Card,
+                "card": card,
+            });
+            let serialized = serde_json::to_vec(&card_json).unwrap();
 
             // Send data in chunks
-            server_tx.send(serialized.as_bytes().into());
+            server_tx.send(serialized);
         }
     }
 }
