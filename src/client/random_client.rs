@@ -38,10 +38,7 @@ impl RandomClient {
     fn server_listener(stream: TcpStream) -> mpsc::Receiver<(usize, Vec<u8>)> {
         let (tx, rx) = mpsc::channel();
 
-        // Listen to server
-        thread::spawn(move || {
-            network_listener(0, stream, tx);
-        });
+        network_listener(0, stream, tx);
 
         rx
     }
@@ -53,10 +50,7 @@ impl RandomClient {
     fn server_writer(stream: TcpStream) -> mpsc::Sender<Vec<u8>> {
         let (tx, rx) = mpsc::channel();
 
-        // Write to server
-        thread::spawn(move || {
-            network_writer(stream, rx);
-        });
+        network_writer(stream, rx);
 
         tx
     }

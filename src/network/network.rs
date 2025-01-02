@@ -32,36 +32,42 @@ pub fn handle_incoming_connections(
     });
 }
 
+/// Spawn a thread that will listen to incoming network connections over the stream
 pub fn network_listener(id: usize, mut stream: TcpStream, tx: mpsc::Sender<(usize, Vec<u8>)>) {
-    let mut buffer = [0; 1024];
+    thread::spawn(move || {
+        let mut buffer = [0; 1024];
 
-    loop {
-        // Read n bytes
-        match stream.read(&mut buffer) {
-            Ok(0) => {
-                println!("Client disconnected");
-                break;
-            }
-            Ok(bytes_read) => {
-                tx.send((id, buffer[..bytes_read].into())).unwrap();
-            }
-            Err(e) => {
-                eprintln!("Failed to read from client: {}", e);
-                continue;
-            }
-        };
-    }
+        loop {
+            // Read n bytes
+            match stream.read(&mut buffer) {
+                Ok(0) => {
+                    println!("Client disconnected");
+                    break;
+                }
+                Ok(bytes_read) => {
+                    tx.send((id, buffer[..bytes_read].into())).unwrap();
+                }
+                Err(e) => {
+                    eprintln!("Failed to read from client: {}", e);
+                    continue;
+                }
+            };
+        }
+    });
 }
 
+/// Spawn a thread that will write to the stream
 pub fn network_writer(mut stream: TcpStream, rx: mpsc::Receiver<Vec<u8>>) {
-    let chunk_size = 1024;
+    thread::spawn(move || {
+        let chunk_size = 1024;
 
-    while let Ok(message) = rx.recv() {
-        for chunk in message.as_slice().chunks(chunk_size) {
-            if let Err(e) = stream.write_all(chunk) {
-                eprintln!("Error sending chunk: {}", e);
-                break;
+        while let Ok(message) = rx.recv() {
+            for chunk in message.as_slice().chunks(chunk_size) {
+                if let Err(e) = stream.write_all(chunk) {
+                    eprintln!("Error sending chunk: {}", e);
+                    break;
+                }
             }
         }
-    }
+    });
 }
