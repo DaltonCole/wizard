@@ -100,6 +100,9 @@ impl RandomClient {
 
         // Send to server
         'server_send: loop {
+            if let Ok((_, msg)) = server_rx.try_recv() {
+                println!("{:?}", String::from_utf8(msg));
+            }
             print!("Enter card: ");
             io::stdout().flush()?;
             let mut input = String::new();

@@ -3,6 +3,8 @@ use serde_json::Value;
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Action {
+    // "msg" will be supplied detailing what we are confirming
+    Confirmation,
     // "port" will be supplied
     Connect,
     // TODO - remove
