@@ -19,36 +19,27 @@ impl Server {
         let listener = TcpListener::bind("0.0.0.0:7878").unwrap();
         println!("Server running");
 
-        let mut txs = Vec::new();
-        let mut rxs = Vec::new();
-
-        for _ in 0..num_players {
-            let (tx, rx) = mpsc::channel();
-            txs.push(tx);
-            rxs.push(rx);
-        }
+        let (tx, rx) = mpsc::channel();
 
         // Spawn thread to handle incoming connections
         thread::spawn(move || {
-            for stream in listener.incoming() {
+            for (id, stream) in listener.incoming().enumerate() {
                 match stream {
                     Ok(stream) => {
-                        let tx = txs.pop().unwrap();
-                        thread::spawn(move || Server::handle_client(stream, tx));
+                        let tx_clone = tx.clone();
+                        thread::spawn(move || Server::handle_client(id, stream, tx_clone));
                     }
                     Err(e) => eprintln!("Connection failed: {}", e),
                 }
             }
         });
 
-        for rx in rxs {
-            for received_message in rx {
-                println!("Main thread processed message: {:?}", received_message);
-            }
+        while let Ok((client_id, message)) = rx.recv() {
+            println!("Client {}: {:?}", client_id, message);
         }
     }
 
-    fn handle_client(mut stream: TcpStream, tx: mpsc::Sender<Card>) {
+    fn handle_client(client_id: usize, mut stream: TcpStream, tx: mpsc::Sender<(usize, Card)>) {
         let mut buffer = [0; 512];
         loop {
             match stream.read(&mut buffer) {
@@ -61,7 +52,7 @@ impl Server {
                     if let Ok(json_str) = std::str::from_utf8(received_data) {
                         if let Ok(message) = serde_json::from_str::<Card>(json_str) {
                             println!("Server received: {:?}", message);
-                            tx.send(message).unwrap();
+                            tx.send((client_id, message)).unwrap();
                         }
                     }
                 }
