@@ -10,6 +10,28 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::thread;
 
+/// Spawn a thread that will create a network listener for each incoming connection, up to N times
+pub fn handle_incoming_connections(
+    listener: TcpListener,
+    tx: mpsc::Sender<(usize, Vec<u8>)>,
+    n: usize,
+) {
+    thread::spawn(move || {
+        for (id, stream) in listener.incoming().enumerate() {
+            match stream {
+                Ok(stream) => {
+                    let tx_clone = tx.clone();
+                    thread::spawn(move || network_listener(id, stream, tx_clone));
+                }
+                Err(e) => eprintln!("Connection failed: {}", e),
+            }
+            if id == n.saturating_sub(1) {
+                break;
+            }
+        }
+    });
+}
+
 pub fn network_listener(id: usize, mut stream: TcpStream, tx: mpsc::Sender<(usize, Vec<u8>)>) {
     let mut buffer = [0; 1024];
 
