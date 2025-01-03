@@ -75,6 +75,11 @@ impl Server {
             ));
         }
 
+        // Start game
+        let mut game =
+            WizardGame::new(num_players, player_read_streams, player_write_streams).unwrap();
+        game.play_game();
+
         /*
         while let Ok((client_id, message)) = rx.recv() {
             let deserialized: serde_json::Value = serde_json::from_slice(&message).unwrap();

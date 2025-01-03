@@ -6,6 +6,7 @@ use crate::cards::suit::Suit;
 use crate::players::player::Player;
 use anyhow::{bail, Result};
 use serde_json::{Map, Value};
+use std::net::TcpStream;
 use std::sync::mpsc;
 
 pub struct WizardGame {
@@ -18,8 +19,8 @@ pub struct WizardGame {
 impl WizardGame {
     pub fn new(
         num_players: usize,
-        client_listeners: Vec<mpsc::Receiver<(usize, Vec<u8>)>>,
-        client_writers: Vec<mpsc::Sender<Vec<u8>>>,
+        client_listeners: Vec<TcpStream>,
+        client_writers: Vec<TcpStream>,
     ) -> Result<WizardGame> {
         if num_players < 3 {
             bail!(
@@ -54,11 +55,22 @@ impl WizardGame {
     pub fn play_game(&mut self) {
         let num_rounds = 60 / self.players.len();
 
+        // Tell players we are starting the game
+        let state = self.game_state();
+        for player in self.players.iter_mut() {
+            player.start_game(&state);
+        }
+
         for _ in 0..num_rounds {
-            self.perform_round();
+            self.perform_round().unwrap();
+        }
+
+        // Tell players the game has ended
+        let state = self.game_state();
+        for player in self.players.iter_mut() {
+            player.end_game(&state);
         }
     }
-
     fn perform_round(&mut self) -> Result<()> {
         self.round += 1;
         let mut deck = Deck::new();
@@ -303,6 +315,10 @@ impl WizardGame {
                 Some(suit) => serde_json::to_value(&suit).unwrap(),
                 None => Value::Null,
             },
+        );
+        state.insert(
+            "player_count".to_string(),
+            Value::Number(self.players.len().into()),
         );
 
         // Player states

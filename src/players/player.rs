@@ -1,6 +1,9 @@
 use crate::cards::card::Card;
 use crate::cards::suit::Suit;
-use serde_json::{from_value, Value};
+use crate::network::action::Action;
+use crate::network::network::{network_listener, network_writer};
+use serde_json::{from_value, json, Value};
+use std::net::TcpStream;
 use std::sync::mpsc;
 
 pub struct Player {
@@ -8,15 +11,12 @@ pub struct Player {
     pub bid: Option<u8>,
     pub cards: Vec<Card>,
     pub tricks_taken: u8,
-    client_listener: mpsc::Receiver<(usize, Vec<u8>)>,
-    client_writer: mpsc::Sender<Vec<u8>>,
+    client_listener: TcpStream,
+    client_writer: TcpStream,
 }
 
 impl Player {
-    pub fn new(
-        client_listener: mpsc::Receiver<(usize, Vec<u8>)>,
-        client_writer: mpsc::Sender<Vec<u8>>,
-    ) -> Player {
+    pub fn new(client_listener: TcpStream, client_writer: TcpStream) -> Player {
         Player {
             score: 0,
             bid: None,
@@ -27,9 +27,51 @@ impl Player {
         }
     }
 
+    fn network_writer(&mut self, value: &Value) {
+        let serialized = serde_json::to_vec(value).unwrap();
+        network_writer(&mut self.client_writer, serialized);
+    }
+
+    /// Inform clients that we are starting the game
+    pub fn start_game(&mut self, game_state: &Value) {
+        let send_start_game_action_json = json!({
+            "action": Action::StartGame,
+            "state": game_state,
+        });
+        self.network_writer(&send_start_game_action_json);
+    }
+
+    pub fn end_game(&mut self, game_state: &Value) {
+        let send_end_game_action_json = json!({
+            "action": Action::EndGame,
+            "state": game_state,
+        });
+        self.network_writer(&send_end_game_action_json);
+    }
+
     pub fn bid(&mut self, game_state: &Value) {
-        // TODO
-        self.bid = Some(0);
+        // Send to server bid action + game state
+        let send_bid_action_json = json!({
+            "action": Action::Bid,
+            "bid": 0,
+            "state": game_state,
+        });
+        self.network_writer(&send_bid_action_json);
+
+        // Receive bid from client
+        loop {
+            if let Ok((action, json)) = network_listener(&mut self.client_listener) {
+                if action == Action::Bid {
+                    self.bid = Some(json["bid"].as_u64().unwrap() as u8);
+                    return;
+                } else {
+                    eprintln!(
+                        "None bid action received during bidding phase. Action: {:?}",
+                        action
+                    );
+                }
+            }
+        }
     }
 
     pub fn play_card(&mut self, game_state: &Value) -> Card {

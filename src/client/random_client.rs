@@ -6,6 +6,7 @@ use crate::cards::suit::Suit;
 use crate::game::wizard::WizardGame;
 use crate::network::action::Action;
 use crate::network::network::{network_listener, network_writer, wait_for_incoming_connection};
+use rand::Rng;
 use serde_json::{json, Value};
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -15,13 +16,17 @@ use std::thread;
 pub struct RandomClient {
     host: String,
     port: String,
+    rng: rand::rngs::ThreadRng,
 }
 
 impl RandomClient {
     pub fn new(host: &str, port: &str) -> RandomClient {
+        let mut rng = rand::thread_rng();
+
         RandomClient {
             host: host.to_string(),
             port: port.to_string(),
+            rng,
         }
     }
     fn send_data(&self, data: &Card) -> std::io::Result<()> {
@@ -66,10 +71,64 @@ impl RandomClient {
         }
     }
 
+    /// Send JSON to server
+    fn network_writer(stream: &mut TcpStream, value: &Value) {
+        let serialized = serde_json::to_vec(&value).unwrap();
+        network_writer(stream, serialized);
+    }
+
+    /// Sends a random bid to the server between 0 and round number
+    fn bid(&mut self, json: &Value) -> u8 {
+        // Get round number
+        let num_players = json["state"]["round"].as_u64().unwrap();
+        // Make random bend
+        self.rng.gen_range(0..=num_players) as u8
+    }
+
     pub fn client(&mut self) -> std::io::Result<()> {
         println!("Connecting to the server");
         let (mut server_reader_stream, mut server_writer_stream) = self.connect_to_server()?;
         println!("Read/Write connection to the server established.");
+
+        loop {
+            use crate::network::action::Action::*;
+
+            if let Ok((action, json)) = network_listener(&mut server_reader_stream) {
+                match action {
+                    Bid => {
+                        let bid = self.bid(&json);
+                        println!("Randomly bidding: {}", bid);
+                        let bid_json = json!({
+                            "action": Action::Bid,
+                            "bid": bid,
+                        });
+                        RandomClient::network_writer(&mut server_writer_stream, &bid_json);
+                    }
+                    Confirmation => {
+                        println!(
+                            "Read connection from the server established. Json: {:#?}",
+                            json
+                        );
+                    }
+                    Connect => {
+                        todo!();
+                    }
+                    Card => {
+                        todo!();
+                    }
+                    EndGame => {
+                        println!("Game has ended. Final Game State: {:#?}", json);
+                        break;
+                    }
+                    PlayCard => {
+                        todo!();
+                    }
+                    StartGame => {
+                        println!("Starting the game. Initial game state: {:#?}", json);
+                    }
+                }
+            }
+        }
 
         /*
         let tmp = serde_json::to_string(&Card::NormalCard(NormalCard {
