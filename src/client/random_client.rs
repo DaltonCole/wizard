@@ -5,7 +5,7 @@ use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
 use crate::game::wizard::WizardGame;
 use crate::network::action::Action;
-use crate::network::network::{handle_incoming_connections, network_listener, network_writer};
+use crate::network::network::{network_listener, network_writer, wait_for_incoming_connection};
 use serde_json::{json, Value};
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -32,49 +32,18 @@ impl RandomClient {
         Ok(())
     }
 
-    /// Spawns a thread that listens to the server
-    ///
-    /// # Returns
-    /// A channel that receives binary data from the server
-    fn server_listener(stream: TcpStream) -> mpsc::Receiver<(usize, Vec<u8>)> {
-        let (tx, rx) = mpsc::channel();
-
-        network_listener(0, stream, tx);
-
-        rx
-    }
-
-    /// Spawns a thread that writes to the server
-    ///
-    /// # Returns
-    /// A channel that can send binary data to the server
-    fn server_writer(stream: TcpStream) -> mpsc::Sender<Vec<u8>> {
-        let (tx, rx) = mpsc::channel();
-
-        network_writer(stream, rx);
-
-        tx
-    }
-
     /// Connect to the server
     ///
     /// # Returns
     /// * Connection to read data from the server
     /// * Connection to write data to the server
-    fn connect_to_server(
-        &self,
-    ) -> std::io::Result<(mpsc::Receiver<(usize, Vec<u8>)>, mpsc::Sender<Vec<u8>>)> {
-        let (listener_tx, server_rx) = mpsc::channel();
-        let (server_tx, writer_rx) = mpsc::channel();
+    fn connect_to_server(&self) -> std::io::Result<(TcpStream, TcpStream)> {
+        // Server writer
+        let mut server_writer = TcpStream::connect(format!("{}:{}", self.host, self.port))?;
 
         // Server listener
         let listener = TcpListener::bind("0.0.0.0:0")?; // Let OS decide port
         let port = listener.local_addr()?.port();
-        handle_incoming_connections(listener, listener_tx, 1);
-
-        // Server writer
-        let mut stream = TcpStream::connect(format!("{}:{}", self.host, self.port))?;
-        network_writer(stream.try_clone()?, writer_rx);
 
         // Send over port to server
         let port_json = json!({
@@ -82,15 +51,27 @@ impl RandomClient {
             "port": port,
         });
         let serialized = serde_json::to_vec(&port_json).unwrap();
-        server_tx.send(serialized);
+        network_writer(&mut server_writer, serialized);
 
-        Ok((server_rx, server_tx))
+        // Wait for incoming connection
+        loop {
+            match wait_for_incoming_connection(&listener) {
+                Ok(server_reader) => {
+                    return Ok((server_reader, server_writer));
+                }
+                Err(e) => {
+                    eprintln!("Error in server read connection: {}", e);
+                }
+            }
+        }
     }
 
     pub fn client(&mut self) -> std::io::Result<()> {
-        let (server_rx, server_tx) = self.connect_to_server()?;
-        println!("Connected to the server.");
+        println!("Connecting to the server");
+        let (mut server_reader_stream, mut server_writer_stream) = self.connect_to_server()?;
+        println!("Read/Write connection to the server established.");
 
+        /*
         let tmp = serde_json::to_string(&Card::NormalCard(NormalCard {
             suit: Suit::Heart,
             rank: Rank::Two,
@@ -126,5 +107,7 @@ impl RandomClient {
             // Send data in chunks
             server_tx.send(serialized);
         }
+        */
+        Ok(())
     }
 }

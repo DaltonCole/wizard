@@ -5,7 +5,7 @@ use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
 use crate::game::wizard::WizardGame;
 use crate::network::action::Action;
-use crate::network::network::{handle_incoming_connections, network_listener, network_writer};
+use crate::network::network::{network_listener, network_writer, wait_for_incoming_connection};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -20,24 +20,60 @@ impl Server {
         serde_json::from_slice(&data)
     }
 
-    /// Create a thread for writing to a particular client
-    fn client_writer(host: &str, port: u64) -> mpsc::Sender<Vec<u8>> {
-        let mut stream = TcpStream::connect(format!("{}:{}", host, port)).unwrap();
-        let (tx, rx) = mpsc::channel();
+    /// Connect a write connection to the client
+    ///
+    /// This is a blocking function that waits for the client to send a Action::Connect over the
+    /// given stream
+    fn create_client_write_connection(client_read_stream: &mut TcpStream) -> TcpStream {
+        loop {
+            if let Ok((action, json)) = network_listener(client_read_stream) {
+                if action == Action::Connect {
+                    let port = json["port"].as_u64().unwrap();
+                    let mut client_write_stream =
+                        TcpStream::connect(format!("{}:{}", "0.0.0.0", port)).unwrap();
 
-        network_writer(stream, rx);
+                    // Send message to client confirming the connection
+                    let confirmation_msg = json!({
+                        "action": Action::Confirmation,
+                        "msg": "Server write connection established",
+                    });
+                    let serialized = serde_json::to_vec(&confirmation_msg).unwrap();
 
-        tx
+                    network_writer(&mut client_write_stream, serialized);
+
+                    println!("Client connected on Port: {}", port);
+                    return client_write_stream;
+                }
+            }
+        }
     }
 
     pub fn start_server(&mut self, num_players: usize) {
         let listener = TcpListener::bind("0.0.0.0:7878").unwrap();
         println!("Server running");
 
-        let (tx, rx) = mpsc::channel();
+        // Wait for players to connect
+        let mut player_read_streams = Vec::new();
+        let mut player_write_streams = Vec::new();
 
-        // Spawn thread to handle incoming connections
-        handle_incoming_connections(listener, tx, num_players);
+        println!("Waiting for players to connect");
+        while player_read_streams.len() != num_players {
+            if let Ok(stream) = wait_for_incoming_connection(&listener) {
+                player_read_streams.push(stream);
+                println!(
+                    "Player {} of {} connected!",
+                    player_read_streams.len(),
+                    num_players
+                );
+            }
+        }
+
+        // Create write connection to clients
+        for mut player_read_stream in player_read_streams.iter_mut() {
+            player_write_streams.push(Server::create_client_write_connection(
+                &mut player_read_stream,
+            ));
+        }
 
         /*
         while let Ok((client_id, message)) = rx.recv() {
@@ -52,6 +88,7 @@ impl Server {
         }
         */
 
+        /*
         let mut client_writters = HashMap::new();
 
         let mut data = Vec::new();
@@ -59,21 +96,7 @@ impl Server {
             data.extend(message.iter());
             if let Ok((action, json)) = Action::serde_find_action(&data) {
                 // Wait for clients to connect
-                if let Action::Connect = action {
-                    let port = json["port"].as_u64().unwrap();
-                    let tx = Server::client_writer("0.0.0.0", port);
-                    // Send message to client confirming the connection
-                    let confirmation_msg = json!({
-                        "action": Action::Confirmation,
-                        "msg": "Server write connection established",
-                    });
-                    let serialized = serde_json::to_vec(&confirmation_msg).unwrap();
-                    tx.send(serialized).unwrap();
-                    client_writters.insert(client_id, tx);
-
-                    println!("Client {} - Port: {}", client_id, port);
-                }
-                /*
+                if let Action::Connect = action {}
                 match action {
                     Action::Confirmation => {
                         let msg: String = serde_json::from_value(json["msg"].clone()).unwrap();
@@ -104,9 +127,9 @@ impl Server {
                         println!("Client {} - Card: {:?}", client_id, card);
                     }
                 }
-                */
                 data.clear();
             }
         }
+                */
     }
 }
