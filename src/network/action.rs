@@ -7,6 +7,10 @@ pub enum Action {
     Confirmation,
     // "port" will be supplied
     Connect,
+    //
+    RequestBid,
+    //
+    GiveBid,
     // TODO - remove
     Card,
 }

@@ -1,21 +1,29 @@
 use crate::cards::card::Card;
 use crate::cards::suit::Suit;
 use serde_json::{from_value, Value};
+use std::sync::mpsc;
 
 pub struct Player {
     pub score: i16,
     pub bid: Option<u8>,
     pub cards: Vec<Card>,
     pub tricks_taken: u8,
+    client_listener: mpsc::Receiver<(usize, Vec<u8>)>,
+    client_writer: mpsc::Sender<Vec<u8>>,
 }
 
 impl Player {
-    pub fn new() -> Player {
+    pub fn new(
+        client_listener: mpsc::Receiver<(usize, Vec<u8>)>,
+        client_writer: mpsc::Sender<Vec<u8>>,
+    ) -> Player {
         Player {
             score: 0,
             bid: None,
             cards: Vec::new(),
             tricks_taken: 0,
+            client_listener,
+            client_writer,
         }
     }
 

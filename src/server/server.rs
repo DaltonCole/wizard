@@ -31,8 +31,6 @@ impl Server {
     }
 
     pub fn start_server(&mut self, num_players: usize) {
-        let mut game = WizardGame::new(num_players).unwrap();
-
         let listener = TcpListener::bind("0.0.0.0:7878").unwrap();
         println!("Server running");
 
@@ -60,6 +58,22 @@ impl Server {
         while let Ok((client_id, message)) = rx.recv() {
             data.extend(message.iter());
             if let Ok((action, json)) = Action::serde_find_action(&data) {
+                // Wait for clients to connect
+                if let Action::Connect = action {
+                    let port = json["port"].as_u64().unwrap();
+                    let tx = Server::client_writer("0.0.0.0", port);
+                    // Send message to client confirming the connection
+                    let confirmation_msg = json!({
+                        "action": Action::Confirmation,
+                        "msg": "Server write connection established",
+                    });
+                    let serialized = serde_json::to_vec(&confirmation_msg).unwrap();
+                    tx.send(serialized).unwrap();
+                    client_writters.insert(client_id, tx);
+
+                    println!("Client {} - Port: {}", client_id, port);
+                }
+                /*
                 match action {
                     Action::Confirmation => {
                         let msg: String = serde_json::from_value(json["msg"].clone()).unwrap();
@@ -79,11 +93,18 @@ impl Server {
 
                         println!("Client {} - Port: {}", client_id, port);
                     }
+                    Action::GiveBid => {
+                        todo!();
+                    }
+                    Action::RequestBid => {
+                        eprintln!("Error: Client only action sent by: {}", client_id);
+                    }
                     Action::Card => {
                         let card: Card = serde_json::from_value(json["card"].clone()).unwrap();
                         println!("Client {} - Card: {:?}", client_id, card);
                     }
                 }
+                */
                 data.clear();
             }
         }

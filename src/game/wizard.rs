@@ -6,6 +6,7 @@ use crate::cards::suit::Suit;
 use crate::players::player::Player;
 use anyhow::{bail, Result};
 use serde_json::{Map, Value};
+use std::sync::mpsc;
 
 pub struct WizardGame {
     players: Vec<Player>,
@@ -15,7 +16,11 @@ pub struct WizardGame {
 }
 
 impl WizardGame {
-    pub fn new(num_players: usize) -> Result<WizardGame> {
+    pub fn new(
+        num_players: usize,
+        client_listeners: Vec<mpsc::Receiver<(usize, Vec<u8>)>>,
+        client_writers: Vec<mpsc::Sender<Vec<u8>>>,
+    ) -> Result<WizardGame> {
         if num_players < 3 {
             bail!(
                 "Not enough players. Minimum of 3 players required. Players requested: {}",
@@ -27,10 +32,15 @@ impl WizardGame {
                 num_players
             );
         }
+        if num_players != client_listeners.len() || num_players != client_writers.len() {
+            bail!("Players does not equal number of client listeners or writers. Players: {}, Listeners: {}, Writers: {}", num_players, client_listeners.len(), client_writers.len());
+        }
 
         let mut players = Vec::new();
-        for _ in 0..num_players {
-            players.push(Player::new());
+        for (client_listener, client_writer) in
+            client_listeners.into_iter().zip(client_writers.into_iter())
+        {
+            players.push(Player::new(client_listener, client_writer));
         }
 
         Ok(WizardGame {
