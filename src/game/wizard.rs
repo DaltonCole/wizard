@@ -1,13 +1,11 @@
 use crate::cards::card::Card;
 use crate::cards::deck::Deck;
-use crate::cards::normal_card::NormalCard;
 use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
 use crate::players::player::Player;
 use anyhow::{bail, Result};
 use serde_json::{Map, Value};
 use std::net::TcpStream;
-use std::sync::mpsc;
 
 pub struct WizardGame {
     players: Vec<Player>,
