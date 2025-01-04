@@ -1,16 +1,8 @@
-use crate::cards::card::Card;
-use crate::cards::normal_card::NormalCard;
-use crate::cards::rank::Rank;
-use crate::cards::special_card::SpecialCard;
-use crate::cards::suit::Suit;
 use crate::game::wizard::WizardGame;
 use crate::network::action::Action;
 use crate::network::network::{network_listener, network_writer, wait_for_incoming_connection};
-use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::io::{Read, Write};
+use serde_json::json;
 use std::net::{TcpListener, TcpStream};
-use std::sync::mpsc;
 use std::thread;
 
 pub struct Server;
@@ -85,13 +77,12 @@ mod tests {
     use super::*;
     use crate::client::random_client::RandomClient;
     use std::io::Read;
-    use std::thread;
 
     #[test]
     fn full_game_with_3_clients() {
         let num_players = 4;
         // Start server
-        let mut server_thread = thread::spawn(move || {
+        let server_thread = thread::spawn(move || {
             let mut server = Server {};
             server.start_server(num_players);
         });
@@ -105,7 +96,9 @@ mod tests {
             thread::sleep(std::time::Duration::from_millis(100));
             client_threads.push(thread::spawn(move || {
                 let mut client = RandomClient::new("0.0.0.0", "7878");
-                client.client();
+                if let Err(e) = client.client() {
+                    panic!("Error occurred: {}", e);
+                }
             }));
         }
 
