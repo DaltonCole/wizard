@@ -145,7 +145,7 @@ impl WizardGame {
     /// Each player plays cards until no cards remain in their hands
     fn play_cards(&mut self) {
         // Which player is leading for this trick
-        let mut leading_player = self.starting_player;
+        let leading_player = self.starting_player;
 
         // For each trick
         for _ in 0..self.round {

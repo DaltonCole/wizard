@@ -4,7 +4,6 @@ use crate::network::action::Action;
 use crate::network::network::{network_listener, network_writer};
 use serde_json::{from_value, json, Value};
 use std::net::TcpStream;
-use std::sync::mpsc;
 
 pub struct Player {
     pub score: i16,

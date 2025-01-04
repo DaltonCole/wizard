@@ -73,10 +73,11 @@ impl Server {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::client::random_client::RandomClient;
-    use std::io::Read;
+    //use std::io::Read;
 
     #[test]
     fn full_game_with_3_clients() {
