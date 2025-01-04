@@ -7,7 +7,7 @@ pub enum Action {
     Bid,
     // "msg" will be supplied detailing what we are confirming
     Confirmation,
-    // "port" will be supplied
+    // "host" and "port" will be supplied
     Connect,
     // TODO - remove
     Card,

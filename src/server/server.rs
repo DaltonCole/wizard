@@ -16,10 +16,6 @@ use std::thread;
 pub struct Server;
 
 impl Server {
-    fn convert_binary_into_json(data: &Vec<u8>) -> Result<Value, serde_json::Error> {
-        serde_json::from_slice(&data)
-    }
-
     /// Connect a write connection to the client
     ///
     /// This is a blocking function that waits for the client to send a Action::Connect over the
@@ -28,9 +24,10 @@ impl Server {
         loop {
             if let Ok((action, json)) = network_listener(client_read_stream) {
                 if action == Action::Connect {
+                    let host: String = serde_json::from_value(json["host"].clone()).unwrap();
                     let port = json["port"].as_u64().unwrap();
                     let mut client_write_stream =
-                        TcpStream::connect(format!("{}:{}", "0.0.0.0", port)).unwrap();
+                        TcpStream::connect(format!("{}:{}", host, port)).unwrap();
 
                     // Send message to client confirming the connection
                     let confirmation_msg = json!({
@@ -79,62 +76,5 @@ impl Server {
         let mut game =
             WizardGame::new(num_players, player_read_streams, player_write_streams).unwrap();
         game.play_game();
-
-        /*
-        while let Ok((client_id, message)) = rx.recv() {
-            let deserialized: serde_json::Value = serde_json::from_slice(&message).unwrap();
-            let port = deserialized["port"].as_u64().unwrap();
-            let (tx, rx) = mpsc::channel();
-            let mut stream = TcpStream::connect(format!("0.0.0.0:{}", port)).unwrap();
-            network_writer(stream.try_clone().unwrap(), rx);
-
-            println!("{}", port);
-            break;
-        }
-        */
-
-        /*
-        let mut client_writters = HashMap::new();
-
-        let mut data = Vec::new();
-        while let Ok((client_id, message)) = rx.recv() {
-            data.extend(message.iter());
-            if let Ok((action, json)) = Action::serde_find_action(&data) {
-                // Wait for clients to connect
-                if let Action::Connect = action {}
-                match action {
-                    Action::Confirmation => {
-                        let msg: String = serde_json::from_value(json["msg"].clone()).unwrap();
-                        println!("Clinet {} - Msg: {}", client_id, msg);
-                    }
-                    Action::Connect => {
-                        let port = json["port"].as_u64().unwrap();
-                        let tx = Server::client_writer("0.0.0.0", port);
-                        // Send message to client confirming the connection
-                        let confirmation_msg = json!({
-                            "action": Action::Confirmation,
-                            "msg": "Server write connection established",
-                        });
-                        let serialized = serde_json::to_vec(&confirmation_msg).unwrap();
-                        tx.send(serialized).unwrap();
-                        client_writters.insert(client_id, tx);
-
-                        println!("Client {} - Port: {}", client_id, port);
-                    }
-                    Action::GiveBid => {
-                        todo!();
-                    }
-                    Action::RequestBid => {
-                        eprintln!("Error: Client only action sent by: {}", client_id);
-                    }
-                    Action::Card => {
-                        let card: Card = serde_json::from_value(json["card"].clone()).unwrap();
-                        println!("Client {} - Card: {:?}", client_id, card);
-                    }
-                }
-                data.clear();
-            }
-        }
-                */
     }
 }

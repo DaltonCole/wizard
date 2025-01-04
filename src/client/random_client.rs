@@ -6,10 +6,11 @@ use crate::cards::suit::Suit;
 use crate::game::wizard::WizardGame;
 use crate::network::action::Action;
 use crate::network::network::{network_listener, network_writer, wait_for_incoming_connection};
+use local_ip_address::local_ip;
 use rand::Rng;
 use serde_json::{json, Value};
 use std::io::{self, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{IpAddr, Ipv4Addr, TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::mpsc;
 use std::thread;
 
@@ -49,11 +50,13 @@ impl RandomClient {
         // Server listener
         let listener = TcpListener::bind("0.0.0.0:0")?; // Let OS decide port
         let port = listener.local_addr()?.port();
+        let host = local_ip().unwrap();
 
         // Send over port to server
         let port_json = json!({
             "action": Action::Connect,
             "port": port,
+            "host": host,
         });
         let serialized = serde_json::to_vec(&port_json).unwrap();
         network_writer(&mut server_writer, serialized);
