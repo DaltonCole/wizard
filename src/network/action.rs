@@ -5,6 +5,8 @@ use serde_json::Value;
 pub enum Action {
     //
     Bid,
+    // "trump" and "hand" will be supplied
+    ChooseTrump,
     // "msg" will be supplied detailing what we are confirming
     Confirmation,
     // "host" and "port" will be supplied

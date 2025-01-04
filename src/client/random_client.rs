@@ -1,10 +1,12 @@
 use crate::cards::card::Card;
+use crate::cards::suit::Suit;
 use crate::network::action::Action;
 use crate::network::network::{network_listener, network_writer, wait_for_incoming_connection};
 use local_ip_address::local_ip;
 use rand::Rng;
 use serde_json::{json, Value};
 use std::net::{TcpListener, TcpStream};
+use strum::IntoEnumIterator;
 
 pub struct RandomClient {
     host: String,
@@ -74,6 +76,13 @@ impl RandomClient {
         self.rng.gen_range(0..=num_players) as u8
     }
 
+    /// Picks a random trump suit
+    fn choose_trump(&mut self, _: &Value) -> Suit {
+        let suits: Vec<Suit> = Suit::iter().collect();
+        let index = self.rng.gen_range(0..suits.len());
+        suits[index]
+    }
+
     /// Picks a random card from "playable_cards"
     fn play_card(&mut self, json: &Value) -> Card {
         // Get playable cards
@@ -101,6 +110,15 @@ impl RandomClient {
                             "bid": bid,
                         });
                         RandomClient::network_writer(&mut server_writer_stream, &bid_json);
+                    }
+                    ChooseTrump => {
+                        let trump_suit = self.choose_trump(&json);
+                        println!("Randomly picking trump: {:?}", trump_suit);
+                        let trump_json = json!({
+                            "action": Action::ChooseTrump,
+                            "trump": trump_suit,
+                        });
+                        RandomClient::network_writer(&mut server_writer_stream, &trump_json);
                     }
                     Confirmation => {
                         println!(

@@ -110,8 +110,13 @@ impl WizardGame {
                         SpecialCard::Wizard => {
                             let dealing_player = (self.starting_player + self.players.len() - 1)
                                 % self.players.len();
-                            self.trump_suit =
-                                Some(self.players[dealing_player].choose_trump(&self.game_state()));
+                            let game_state = self.game_state();
+                            self.trump_suit = Some(
+                                self.players
+                                    .get_mut(dealing_player)
+                                    .unwrap()
+                                    .choose_trump(&game_state),
+                            );
                         }
                         SpecialCard::Jester => {
                             self.trump_suit = None;

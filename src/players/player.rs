@@ -177,8 +177,28 @@ impl Player {
     }
 
     /// Choose trump in the case of a wizard being trump
-    pub fn choose_trump(&self, game_state: &Value) -> Suit {
-        // TODO
-        Suit::Spade
+    pub fn choose_trump(&mut self, game_state: &Value) -> Suit {
+        // Send to client ChooseTrump action + game state
+        let send_choose_trump_action_json = json!({
+            "action": Action::ChooseTrump,
+            "trump": Value::Null,
+            "hand": self.cards,
+            "state": game_state,
+        });
+        self.network_writer(&send_choose_trump_action_json);
+
+        // Receive bid from client
+        loop {
+            if let Ok((action, json)) = network_listener(&mut self.client_listener) {
+                if action == Action::ChooseTrump {
+                    return serde_json::from_value(json["trump"].clone()).unwrap();
+                } else {
+                    eprintln!(
+                        "None ChooseTrump action received during trump choosing phase. Action: {:?}",
+                        action
+                    );
+                }
+            }
+        }
     }
 }
