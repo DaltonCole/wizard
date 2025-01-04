@@ -13,7 +13,8 @@ pub enum Action {
     Card,
     // Final Game Stats
     EndGame,
-    //
+    // "hand", "playable_cards", "played_card" will be supplied. "played_card" should be the
+    // client's response
     PlayCard,
     // Tell client that server is starting the game
     StartGame,

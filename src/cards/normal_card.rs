@@ -3,7 +3,7 @@ use crate::cards::suit::Suit;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NormalCard {
     pub suit: Suit,
     pub rank: Rank,

@@ -77,12 +77,21 @@ impl RandomClient {
         network_writer(stream, serialized);
     }
 
-    /// Sends a random bid to the server between 0 and round number
+    /// Generates a random bid between 0 and the round number
     fn bid(&mut self, json: &Value) -> u8 {
         // Get round number
         let num_players = json["state"]["round"].as_u64().unwrap();
         // Make random bend
         self.rng.gen_range(0..=num_players) as u8
+    }
+
+    /// Picks a random card from "playable_cards"
+    fn play_card(&mut self, json: &Value) -> Card {
+        // Get playable cards
+        let playable_cards: Vec<Card> =
+            serde_json::from_value(json["playable_cards"].clone()).unwrap();
+        let index = self.rng.gen_range(0..playable_cards.len());
+        playable_cards[index]
     }
 
     pub fn client(&mut self) -> std::io::Result<()> {
@@ -121,7 +130,13 @@ impl RandomClient {
                         break;
                     }
                     PlayCard => {
-                        todo!();
+                        let played_card = self.play_card(&json);
+                        println!("Randomly playing: {:?}", played_card);
+                        let played_card_json = json!({
+                            "action": Action::PlayCard,
+                            "played_card": played_card,
+                        });
+                        RandomClient::network_writer(&mut server_writer_stream, &played_card_json);
                     }
                     StartGame => {
                         println!("Starting the game. Initial game state: {:#?}", json);

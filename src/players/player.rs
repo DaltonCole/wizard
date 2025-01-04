@@ -50,10 +50,11 @@ impl Player {
     }
 
     pub fn bid(&mut self, game_state: &Value) {
-        // Send to server bid action + game state
+        // Send to client bid action + game state
         let send_bid_action_json = json!({
             "action": Action::Bid,
             "bid": 0,
+            "hand": self.cards,
             "state": game_state,
         });
         self.network_writer(&send_bid_action_json);
@@ -75,21 +76,43 @@ impl Player {
     }
 
     pub fn play_card(&mut self, game_state: &Value) -> Card {
-        println!("{}", self.cards.len());
+        // Get playable cards
         let playable_cards = self.playable_cards(game_state);
-        // TODO
-        let played_card = playable_cards[0].clone();
 
-        // Remove played card from hand
-        match self.cards.iter().position(|card| *card == played_card) {
-            Some(index) => self.cards.remove(index),
-            None => panic!(
-                "Played card is not in player's hand. Card: {:?}; Hand: {:?}",
-                played_card, self.cards
-            ),
-        };
+        // Send to client
+        let send_json = json!({
+            "action": Action::PlayCard,
+            "hand": self.cards,
+            "playable_cards": playable_cards,
+            "played_card": Value::Null,
+            "state": game_state,
+        });
+        self.network_writer(&send_json);
 
-        played_card
+        // Receive played card from client
+        loop {
+            if let Ok((action, json)) = network_listener(&mut self.client_listener) {
+                if action == Action::PlayCard {
+                    let played_card = serde_json::from_value(json["played_card"].clone()).unwrap();
+
+                    // Remove played card from hand
+                    match self.cards.iter().position(|card| *card == played_card) {
+                        Some(index) => self.cards.remove(index),
+                        None => panic!(
+                            "Played card is not in player's hand. Card: {:?}; Hand: {:?}",
+                            played_card, self.cards
+                        ),
+                    };
+
+                    return played_card;
+                } else {
+                    eprintln!(
+                        "None PlayCard action received during card playing phase. Action: {:?}",
+                        action
+                    );
+                }
+            }
+        }
     }
 
     /// List of playable cards given the current hand and what has been played
