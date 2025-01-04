@@ -7,7 +7,7 @@ use crate::game::wizard::WizardGame;
 use crate::network::action::Action;
 use anyhow::{bail, Result};
 use serde_json::Value;
-use std::io::{Read, Result as Result_IO, Write};
+use std::io::{Read, Result as IoResult, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::thread;
@@ -15,7 +15,7 @@ use std::thread;
 /// Wait for an incoming connection
 ///
 /// This is a blocking operation
-pub fn wait_for_incoming_connection(listener: &TcpListener) -> Result_IO<TcpStream> {
+pub fn wait_for_incoming_connection(listener: &TcpListener) -> IoResult<TcpStream> {
     match listener.accept() {
         Ok((socket, addr)) => {
             println!("New client: {addr:?}");
