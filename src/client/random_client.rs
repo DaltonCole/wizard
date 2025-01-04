@@ -1,18 +1,10 @@
 use crate::cards::card::Card;
-use crate::cards::normal_card::NormalCard;
-use crate::cards::rank::Rank;
-use crate::cards::special_card::SpecialCard;
-use crate::cards::suit::Suit;
-use crate::game::wizard::WizardGame;
 use crate::network::action::Action;
 use crate::network::network::{network_listener, network_writer, wait_for_incoming_connection};
 use local_ip_address::local_ip;
 use rand::Rng;
 use serde_json::{json, Value};
-use std::io::{self, Read, Write};
-use std::net::{IpAddr, Ipv4Addr, TcpListener, TcpStream, ToSocketAddrs};
-use std::sync::mpsc;
-use std::thread;
+use std::net::{TcpListener, TcpStream};
 
 pub struct RandomClient {
     host: String,
@@ -22,20 +14,13 @@ pub struct RandomClient {
 
 impl RandomClient {
     pub fn new(host: &str, port: &str) -> RandomClient {
-        let mut rng = rand::thread_rng();
+        let rng = rand::thread_rng();
 
         RandomClient {
             host: host.to_string(),
             port: port.to_string(),
             rng,
         }
-    }
-    fn send_data(&self, data: &Card) -> std::io::Result<()> {
-        let mut stream = TcpStream::connect(format!("{}:{}", self.host, self.port))?;
-        let serialized = serde_json::to_string(data).unwrap();
-        stream.write_all(serialized.as_bytes())?;
-        println!("Client sent {:?}", data);
-        Ok(())
     }
 
     /// Connect to the server
@@ -148,43 +133,6 @@ impl RandomClient {
             }
         }
 
-        /*
-        let tmp = serde_json::to_string(&Card::NormalCard(NormalCard {
-            suit: Suit::Heart,
-            rank: Rank::Two,
-        }))
-        .unwrap();
-        println!("{}", tmp);
-
-        // Send to server
-        'server_send: loop {
-            if let Ok((_, msg)) = server_rx.try_recv() {
-                println!("{:?}", String::from_utf8(msg));
-            }
-            print!("Enter card: ");
-            io::stdout().flush()?;
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            let trimmed = input.trim();
-
-            let card: Card = match serde_json::from_str(trimmed) {
-                Ok(data) => data,
-                Err(e) => {
-                    eprintln!("Error sending to server: {}", e);
-                    continue;
-                }
-            };
-
-            let card_json = json!({
-                "action": Action::Card,
-                "card": card,
-            });
-            let serialized = serde_json::to_vec(&card_json).unwrap();
-
-            // Send data in chunks
-            server_tx.send(serialized);
-        }
-        */
         Ok(())
     }
 }
