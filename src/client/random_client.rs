@@ -13,6 +13,7 @@ pub struct RandomClient {
 }
 
 impl RandomClient {
+    /// Create a new random client
     pub fn new(host: &str, port: &str) -> RandomClient {
         let rng = rand::thread_rng();
 
