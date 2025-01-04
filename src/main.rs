@@ -1,6 +1,7 @@
 mod cards;
 mod client;
 mod game;
+mod network;
 mod players;
 mod server;
 

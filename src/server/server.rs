@@ -75,6 +75,46 @@ impl Server {
         // Start game
         let mut game =
             WizardGame::new(num_players, player_read_streams, player_write_streams).unwrap();
+        thread::sleep(std::time::Duration::from_millis(100)); // Delay helps clients connect to
+                                                              // server properly
         game.play_game();
+    }
+}
+
+mod tests {
+    use super::*;
+    use crate::client::random_client::RandomClient;
+    use std::io::Read;
+    use std::thread;
+
+    #[test]
+    fn full_game_with_3_clients() {
+        let num_players = 4;
+        // Start server
+        let mut server_thread = thread::spawn(move || {
+            let mut server = Server {};
+            server.start_server(num_players);
+        });
+
+        // Let the server start up
+        thread::sleep(std::time::Duration::from_millis(100));
+
+        // Start num_players clients
+        let mut client_threads = Vec::new();
+        for _ in 0..num_players {
+            thread::sleep(std::time::Duration::from_millis(100));
+            client_threads.push(thread::spawn(move || {
+                let mut client = RandomClient::new("0.0.0.0", "7878");
+                client.client();
+            }));
+        }
+
+        println!("Server Joining");
+        server_thread.join().unwrap();
+        println!("Server Joined");
+        for client_thread in client_threads {
+            client_thread.join().unwrap();
+        }
+        println!("client Joined");
     }
 }
