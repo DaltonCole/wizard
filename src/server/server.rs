@@ -76,6 +76,7 @@ impl Server {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::client::client::Client;
     use crate::client::random_client::RandomClient;
     //use std::io::Read;
 
@@ -96,8 +97,8 @@ mod tests {
         for _ in 0..num_players {
             thread::sleep(std::time::Duration::from_millis(100));
             client_threads.push(thread::spawn(move || {
-                let mut client = RandomClient::new("0.0.0.0", "7878");
-                if let Err(e) = client.client() {
+                let mut client = RandomClient::new();
+                if let Err(e) = client.client("0.0.0.0", "7878") {
                     panic!("Error occurred: {}", e);
                 }
             }));
