@@ -57,3 +57,9 @@ pub fn network_writer(stream: &mut TcpStream, data: Vec<u8>) {
         }
     }
 }
+
+/// Serialize data then send over stream
+pub fn serialize_and_write_to_network(stream: &mut TcpStream, value: &Value) {
+    let serialized = serde_json::to_vec(&value).unwrap();
+    network_writer(stream, serialized);
+}
