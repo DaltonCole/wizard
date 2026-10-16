@@ -4,8 +4,28 @@ use crate::cards::special_card::SpecialCard;
 use crate::cards::suit::Suit;
 use crate::players::player::Player;
 use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::net::TcpStream;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GameState {
+    round: usize,
+    starting_player: usize,
+    trump_suit: Option<Suit>,
+    leading_suit: Option<Suit>,
+    player_count: usize,
+    played_cards: Vec<Card>,
+    player_states: Vec<PlayerState>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlayerState {
+    score: i16,
+    bid: Option<u8>,
+    tricks_taken: u8,
+    player_id: usize, // Corresponds to index in GameState.player_states
+}
 
 pub struct WizardGame {
     players: Vec<Player>,
@@ -303,7 +323,8 @@ impl WizardGame {
     }
 
     /// Game state
-    fn game_state(&self) -> Value {
+    fn game_state(&self) -> GameState {
+        // TODO
         let mut state = Map::new();
 
         // Game state
